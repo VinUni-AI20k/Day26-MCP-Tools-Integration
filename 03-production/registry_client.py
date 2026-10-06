@@ -28,13 +28,16 @@ import os
 import sys
 from pathlib import Path
 
-import httpx
+from packaging.version import Version
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamable_http_client
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 
 REGISTRY_PATH = Path(__file__).parent / "registry.json"
+# Đường dẫn tương đối trong registry.json được tính từ thư mục chứa file registry,
+# nên script chạy đúng dù bạn đứng ở thư mục nào.
+REGISTRY_DIR = REGISTRY_PATH.parent
 
 
 class ToolRegistry:
@@ -78,7 +81,8 @@ class ToolRegistry:
             raise KeyError(f"Không tìm thấy tool (tag={tag}, keyword={keyword})")
         active = [r for r in results if not r["deprecated"]]
         candidates = active or results
-        return max(candidates, key=lambda r: r["version"])
+        # So sánh theo semantic version, không so chuỗi ("10.0.0" > "2.0.0")
+        return max(candidates, key=lambda r: Version(r["version"]))
 
 
 async def connect_and_call(match: dict, tool_args: dict) -> str:
@@ -87,10 +91,15 @@ async def connect_and_call(match: dict, tool_args: dict) -> str:
     tool_name = match["tool"]
 
     if server.get("transport") == "stdio":
-        params = StdioServerParameters(
-            command=sys.executable,
-            args=server["args"],
-        )
+        # "python" trong registry → dùng đúng interpreter hiện tại (tránh lỗi venv)
+        command = server.get("command", "python")
+        if command in ("python", "python3"):
+            command = sys.executable
+        args = [
+            str((REGISTRY_DIR / a).resolve()) if a.endswith(".py") else a
+            for a in server.get("args", [])
+        ]
+        params = StdioServerParameters(command=command, args=args)
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
@@ -104,9 +113,9 @@ async def connect_and_call(match: dict, tool_args: dict) -> str:
             token = os.environ.get(auth_cfg["token_env"], "dev-token-abc123")
             headers["Authorization"] = f"Bearer {token}"
 
-        async with httpx.AsyncClient(headers=headers) as http_client:
+        async with create_mcp_http_client(headers=headers) as http_client:
             async with streamable_http_client(server["url"], http_client=http_client) as (
-                read, write, _,
+                read, write,
             ):
                 async with ClientSession(read, write) as session:
                     await session.initialize()

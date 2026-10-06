@@ -24,8 +24,17 @@ day26-mcp/
     ├── auth_client.py
     ├── registry.json
     ├── registry_client.py
-    └── versioned_server.py
+    ├── versioned_server.py
+    └── versioned_client.py
+│
+└── 04-lab/                  ← Bước 4: Agent Google ADK + MCP server thật (WeatherAPI)
+    ├── README.md
+    ├── mcp-server/          ← FastMCP server (Streamable HTTP, Dockerfile cho Cloud Run)
+    └── mcp-client/          ← ADK agent dùng McpToolset
 ```
+
+> Bước 01–03 dùng **MCP Python SDK v2** (`mcp>=2.0`, xem `requirements.txt`).
+> Lab 04 có môi trường riêng (`uv sync` trong từng thư mục).
 
 ## Quick start
 
@@ -166,7 +175,7 @@ Các ví dụ trên chạy tốt trên máy cá nhân, nhưng đưa vào **hệ 
 MCP server phục vụ qua **HTTP** cho nhiều client → cần xác thực. MCP SDK hỗ trợ sẵn **Bearer Token** verification:
 
 - Server: cấu hình `AuthSettings` + implement `TokenVerifier` protocol
-- Client: gửi header `Authorization: Bearer <token>` qua `httpx.AsyncClient`
+- Client: gửi header `Authorization: Bearer <token>` qua `create_mcp_http_client(headers=...)` của MCP SDK
 - Không có token → 401, token sai → 403, logic tool không biết gì về auth
 
 | Tầng | Demo (stdio) | Production (HTTP) |

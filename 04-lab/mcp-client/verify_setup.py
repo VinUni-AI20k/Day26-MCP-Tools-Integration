@@ -81,29 +81,27 @@ def check_agent_structure():
 def check_mcp_server():
     """Check if MCP server is accessible"""
     print("\n🔍 Checking MCP server connectivity...")
-    
-    server_url = "https://weather-mcp-server-oze7nwnjba-as.a.run.app"
-    
+
+    # Cùng URL mà weather_agent/agent.py dùng (biến môi trường MCP_SERVER_URL)
+    from dotenv import load_dotenv
+    load_dotenv()
+    server_url = os.getenv("MCP_SERVER_URL", "http://localhost:8085/mcp")
+
     try:
         import httpx
-        import asyncio
-        
-        async def test_connection():
-            async with httpx.AsyncClient() as client:
-                response = await client.get(server_url, timeout=10.0)
-                return response.status_code
-        
-        status_code = asyncio.run(test_connection())
-        
-        if status_code in [200, 404]:  # 404 is expected for GET on MCP endpoint
-            print(f"✅ MCP server reachable at {server_url}")
+
+        response = httpx.get(server_url, timeout=10.0)
+        # GET thuần lên endpoint MCP thường bị từ chối (400/405/406) vì thiếu
+        # header/session MCP — nhưng có phản hồi nghĩa là server đang chạy.
+        if response.status_code < 500:
+            print(f"✅ MCP server reachable at {server_url} (HTTP {response.status_code})")
             return True
-        else:
-            print(f"⚠️  MCP server returned status {status_code}")
-            return False
-            
+        print(f"⚠️  MCP server returned status {response.status_code}")
+        return False
+
     except Exception as e:
-        print(f"❌ Cannot reach MCP server: {e}")
+        print(f"❌ Cannot reach MCP server at {server_url}: {e}")
+        print("   Start it: cd ../mcp-server && uv run python weather.py")
         return False
 
 def check_agent_import():
@@ -142,8 +140,7 @@ def main():
     if all(checks):
         print("✅ All checks passed!")
         print("\n🚀 Ready to start!")
-        print("   Run: ./start_agent.sh")
-        print("   Or:  uv run adk web")
+        print("   Run: uv run adk web")
         print("\n📍 Then open: http://localhost:8000")
         return 0
     else:

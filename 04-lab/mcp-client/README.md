@@ -94,7 +94,7 @@ mcp-client/
 In `weather_agent/agent.py`:
 
 ```python
-MCP_SERVER_URL = "http://localhost:8085/mcp"
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8085/mcp")
 
 connection_params = StreamableHTTPConnectionParams(
     url=MCP_SERVER_URL,
@@ -114,7 +114,7 @@ root_agent = Agent(
 
 1. **404 errors**: MCP server is not running or wrong port
    - Ensure the MCP server is running on port 8085
-   - Check `MCP_SERVER_URL` in `agent.py`
+   - Check `MCP_SERVER_URL` (env var / `.env`, default `http://localhost:8085/mcp`)
 
 2. **405 errors**: Port conflict with another application
    - Check what's running on the port: `lsof -i :8085`
